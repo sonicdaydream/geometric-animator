@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Play, Pause, RotateCcw, Download, Settings, Video, FileImage, Package, Monitor } from 'lucide-react';
-
+import GIF from 'gif.js';
 const GeometricLoopAnimator = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>(0);
@@ -360,23 +360,13 @@ const GeometricLoopAnimator = () => {
       setIsGeneratingGif(true);
       setGifProgress(0);
       
-      // GIF.jsライブラリをCDNから動的読み込み
-      if (!(window as any).GIF) {
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js';
-        document.head.appendChild(script);
-        
-        await new Promise((resolve, reject) => {
-          script.onload = resolve;
-          script.onerror = () => reject(new Error('GIF.jsの読み込みに失敗しました'));
-        });
-      }
+      // ローカルGIF.jsを使用（CDN不要）
       
       const wasPlaying = isPlaying;
       setIsPlaying(false);
       
       // GIFインスタンス作成
-      const gif = new (window as any).GIF({
+      const gif = new GIF({
         workers: 0,  // ← 2 から 0 に変更
         quality: 10,
         width: canvas.width,
