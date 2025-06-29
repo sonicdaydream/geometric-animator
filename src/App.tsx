@@ -367,16 +367,17 @@ const GeometricLoopAnimator = () => {
       
       // GIFインスタンス作成
       const gif = new GIF({
-        workers: 0,  // ← 2 から 0 に変更
-        quality: 10,
-        width: canvas.width,
-        height: canvas.height
-        // workerScript行を削除
+        workers: 0,
+        quality: 20,  // 10→20（軽量化）
+        width: Math.min(canvas.width, 400),   // 最大400px
+        height: Math.min(canvas.height, 400), // 最大400px
+        repeat: 0,    // 無限ループ
+        transparent: null
       });
-      
+
       const startTime = timeRef.current;
-      const frameCount = 30; // GIF用は30フレーム
-      const frameInterval = 4;
+      const frameCount = 15; // 30→15フレーム（軽量化）
+      const frameInterval = 8; // 4→8（同じ速度だが軽量）
       
       // フレーム生成とGIFへの追加
       for (let i = 0; i < frameCount; i++) {
