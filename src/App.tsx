@@ -1032,17 +1032,12 @@ const GeometricLoopAnimator = () => {
                 <span>{isRecording ? '録画中...' : '🎥 MP4録画(8秒)'}</span>
               </button>
               <button
-                onClick={() => {
-                  generateAnimationFrames();
-                  setTimeout(() => {
-                    window.open('https://ezgif.com/maker', '_blank');
-                  }, 1000);
-                }}
+                onClick={generateGIF}
                 disabled={isRecording || isGeneratingFrames || isGeneratingGif}
-                className="h-12 bg-pink-600 hover:bg-pink-700 rounded-md flex flex-col items-center justify-center text-white transition-colors text-xs disabled:opacity-50"
+                className={`h-12 ${isGeneratingGif ? 'bg-pink-600' : 'bg-pink-600 hover:bg-pink-700'} rounded-md flex flex-col items-center justify-center text-white transition-colors text-xs disabled:opacity-50`}
               >
                 <span className="text-base">🎨</span>
-                <span>🎯 簡単GIF作成</span>
+                <span>{isGeneratingGif ? 'GIF生成中...' : '🎯 GIF生成(3秒)'}</span>
               </button>
               <button
                 onClick={generateAnimationFrames}
