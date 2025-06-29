@@ -377,11 +377,11 @@ const GeometricLoopAnimator = () => {
       
       // GIFインスタンス作成
       const gif = new (window as any).GIF({
-        workers: 2,
+        workers: 0,  // ← 2 から 0 に変更
         quality: 10,
         width: canvas.width,
-        height: canvas.height,
-        workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js'
+        height: canvas.height
+        // workerScript行を削除
       });
       
       const startTime = timeRef.current;
