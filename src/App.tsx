@@ -367,12 +367,12 @@ const GeometricLoopAnimator = () => {
       
       // GIFインスタンス作成
       const gif = new GIF({
-        workers: 0,
-        quality: 20,  // 10→20（軽量化）
-        width: Math.min(canvas.width, 400),   // 最大400px
-        height: Math.min(canvas.height, 400), // 最大400px
-        repeat: 0,    // 無限ループ
-        transparent: null
+        workers: 2,
+        quality: 20,
+        workerScript: '/gif.worker.js', // public ディレクトリに設置
+        width: Math.min(canvas.width, 400),
+        height: Math.min(canvas.height, 400),
+        repeat: 0,
       });
 
       const startTime = timeRef.current;
