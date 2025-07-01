@@ -459,8 +459,11 @@ const GeometricLoopAnimator = () => {
 
       // フレーム生成（最適化済み）
       for (let i = 0; i < optimization.frameCount; i++) {
-        timeRef.current = startTime + (i * frameInterval);
 
+        const progress = i / optimization.frameCount;
+        const loopTime = startTime + (progress * 240);
+        timeRef.current = loopTime;
+        
         const ctx = canvas.getContext('2d');
         if (ctx) {
           switch (pattern) {
@@ -801,7 +804,9 @@ const GeometricLoopAnimator = () => {
       const frames = [];
 
       for (let i = 0; i < frameCount; i++) {
-        timeRef.current = startTime + (i * frameInterval);
+        const progress = i / frameCount;
+        const loopTime = startTime + (progress * 240); // 240は1ループの周期
+        timeRef.current = loopTime;
 
         const ctx = canvas.getContext('2d');
         if (ctx) {
