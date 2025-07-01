@@ -459,7 +459,7 @@ const GeometricLoopAnimator = () => {
 
       // フレーム生成（最適化済み）
       for (let i = 0; i < optimization.frameCount; i++) {
-        const progress = i / frameCount;
+        const progress = i / optimization.frameCount; 
         const cyclicTime = startTime + (progress * 120);
         timeRef.current = cyclicTime;
 
