@@ -459,9 +459,9 @@ const GeometricLoopAnimator = () => {
 
       // フレーム生成（最適化済み）
       for (let i = 0; i < optimization.frameCount; i++) {
-      const phase = (i / optimization.frameCount) * 2 * Math.PI;
-      const cyclicTime = Math.sin(phase) * 120 + startTime;
-      timeRef.current = cyclicTime;
+        const phase = (i / optimization.frameCount) * 2 * Math.PI;
+        const cyclicTime = Math.sin(phase) * 120 + startTime;
+        timeRef.current = cyclicTime;
 
         const ctx = canvas.getContext('2d');
         if (ctx) {
@@ -803,8 +803,8 @@ const GeometricLoopAnimator = () => {
       const frames = [];
 
       for (let i = 0; i < frameCount; i++) {
-        const phase = (i / frameCount) * 2 * Math.PI;
-        const cyclicTime = Math.sin(phase) * 120 + startTime;
+        const progress = i / frameCount;
+        const cyclicTime = startTime + (progress * 120);
         timeRef.current = cyclicTime;
 
         const ctx = canvas.getContext('2d');
