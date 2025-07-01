@@ -459,9 +459,9 @@ const GeometricLoopAnimator = () => {
 
       // フレーム生成（最適化済み）
       for (let i = 0; i < optimization.frameCount; i++) {
-        const progress = i / optimization.frameCount; 
-        const cyclicTime = startTime + (progress * 120);
-        timeRef.current = cyclicTime;
+        const normalizedTime = i / optimization.frameCount;
+        const time = normalizedTime * 600; // ChatGPTが提案した共通周期
+        timeRef.current = time;
 
         const ctx = canvas.getContext('2d');
         if (ctx) {
@@ -803,9 +803,9 @@ const GeometricLoopAnimator = () => {
       const frames = [];
 
       for (let i = 0; i < frameCount; i++) {
-        const progress = i / frameCount;
-        const cyclicTime = startTime + (progress * 120);
-        timeRef.current = cyclicTime;
+        const normalizedTime = i / frameCount;
+        const time = normalizedTime * 600; // ChatGPTが提案した共通周期
+        timeRef.current = time;
 
         const ctx = canvas.getContext('2d');
         if (ctx) {
