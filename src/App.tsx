@@ -7,7 +7,7 @@ const GeometricLoopAnimator = () => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
 
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [showControls, setShowControls] = useState(false);
   const [isGeneratingFrames, setIsGeneratingFrames] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -57,71 +57,323 @@ const GeometricLoopAnimator = () => {
     }
   };
 
-  // ランダム生成機能
-  const generateRandom = () => {
-    const patterns = ['spiral', 'ripple', 'star', 'triangle', 'hexagon'];
-    const randomPattern = patterns[Math.floor(Math.random() * patterns.length)];
+// ✨ 螺旋ドットパターン（美しい光る点の螺旋）
 
-    const colorModes = ['rainbow', 'monochrome', 'gradient', 'fire', 'ocean'];
-    const randomColorMode = colorModes[Math.floor(Math.random() * colorModes.length)];
+const drawRandomPattern = (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, time: number) => {
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+  const maxRadius = Math.min(canvas.width, canvas.height) * 0.4 * scale;
 
-    const randomSpeed = Math.random() * 2.5 + 0.5;
-    const randomDensity = Math.floor(Math.random() * 60) + 20;
-    const randomScale = Math.random() * 1.4 + 0.6;
-    const randomRotation = (Math.random() - 0.5) * 4;
+  // 背景処理
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    setPattern(randomPattern);
-    setColorMode(randomColorMode);
-    setSpeed(parseFloat(randomSpeed.toFixed(1)));
-    setDensity(randomDensity);
-    setScale(parseFloat(randomScale.toFixed(1)));
-    setRotation(parseFloat(randomRotation.toFixed(1)));
-
-    timeRef.current = Math.random() * 1000;
-  };
-
+  // 点の総数（密度で調整）
+  const totalDots = Math.floor(density * 2) + 30; // 30-230個
+  
+  // 複数の同心円レイヤーに点を配置
+  const layers = 8; // 8つの同心円レイヤー
+  
+  for (let layer = 0; layer < layers; layer++) {
+    const layerProgress = layer / (layers - 1); // 0-1
+    const layerRadius = maxRadius * layerProgress;
+    
+    // 各レイヤーの点の数（外側ほど多く）
+    const dotsInLayer = Math.floor((totalDots / layers) * (0.5 + layerProgress * 1.5));
+    
+    for (let i = 0; i < dotsInLayer; i++) {
+      // 点のID（一意性のため）
+      const dotId = layer * 1000 + i;
+      
+      // 基本角度（レイヤー内での均等分布 + ランダム性）
+      const baseAngle = (i / dotsInLayer) * Math.PI * 2;
+      const angleNoise = Math.sin(dotId * 0.1) * 0.5; // 角度のランダム性
+      const angle = baseAngle + angleNoise;
+      
+      // 半径のランダム性（同じレイヤー内でも変動）
+      const radiusNoise = Math.sin(dotId * 0.07) * 0.3; // -0.3 to 0.3
+      const finalRadius = layerRadius * (0.8 + radiusNoise);
+      
+      // 時間による微細な動き（各点が独立）
+      const timeOffset = dotId * 0.01;
+      const microMotionX = Math.sin(time * 0.02 * speed + timeOffset) * 3;
+      const microMotionY = Math.cos(time * 0.025 * speed + timeOffset * 1.3) * 3;
+      
+      // 回転による動き（レイヤーごとに異なる速度）
+      const layerRotationSpeed = (layer % 2 === 0 ? 1 : -1) * (0.5 + layer * 0.1);
+      const rotationAngle = angle + time * 0.003 * rotation * layerRotationSpeed;
+      
+      // 最終位置
+      const x = centerX + Math.cos(rotationAngle) * finalRadius + microMotionX;
+      const y = centerY + Math.sin(rotationAngle) * finalRadius + microMotionY;
+      
+      // 点のサイズ（レイヤーとランダム性）
+      const baseSizeByLayer = (layerProgress * 0.6 + 0.4) * 12; // 外側ほど大きく
+      const sizeRandomness = Math.sin(dotId * 0.13) * 0.4 + 0.8; // 0.4-1.2の変動
+      const sizePulse = Math.sin(time * 0.04 * speed + timeOffset * 2) * 0.3 + 0.7; // 脈動
+      const dotSize = baseSizeByLayer * sizeRandomness * sizePulse;
+      
+      // 明滅効果（各点が独立したリズム）
+      const flickerSpeed = 0.05 + Math.sin(dotId * 0.03) * 0.03; // 個別の明滅速度
+      const flickerPhase = Math.sin(time * flickerSpeed * speed + timeOffset * 3) * 0.5 + 0.5;
+      const breathPhase = Math.sin(time * 0.02 * speed + timeOffset * 0.7) * 0.3 + 0.7;
+      const brightness = flickerPhase * breathPhase;
+      
+      // 色彩（レイヤーと時間で変化）
+      const colorBase = (layer * 15 + i * 3 + time * 0.1) % 100;
+      const dotColor = getColor(Math.floor(colorBase), 100, time + dotId, colorMode);
+      
+      // 透明度（距離と明滅で制御）
+      const distanceAlpha = Math.max(0.2, 1 - layerProgress * 0.5);
+      const finalAlpha = distanceAlpha * brightness;
+      
+      // 画面外チェック
+      if (finalRadius > maxRadius) continue;
+      
+      ctx.save();
+      
+      // 外側のグロー効果
+      if (dotSize > 6) {
+        const glowSize = dotSize * (1.5 + brightness * 0.5);
+        const glowGradient = ctx.createRadialGradient(x, y, 0, x, y, glowSize);
+        glowGradient.addColorStop(0, dotColor);
+        glowGradient.addColorStop(0.7, dotColor);
+        glowGradient.addColorStop(1, 'transparent');
+        
+        ctx.globalAlpha = finalAlpha * 0.3;
+        ctx.fillStyle = glowGradient;
+        ctx.beginPath();
+        ctx.arc(x, y, glowSize, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      // メインの光る点
+      const mainGradient = ctx.createRadialGradient(x, y, 0, x, y, dotSize);
+      mainGradient.addColorStop(0, dotColor);
+      mainGradient.addColorStop(0.6, dotColor);
+      mainGradient.addColorStop(1, 'transparent');
+      
+      ctx.globalAlpha = finalAlpha;
+      ctx.fillStyle = mainGradient;
+      ctx.beginPath();
+      ctx.arc(x, y, dotSize, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // 中心の明るいコア
+      ctx.globalAlpha = finalAlpha * 0.9;
+      ctx.fillStyle = dotColor;
+      ctx.beginPath();
+      ctx.arc(x, y, dotSize * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // 特に明るい点にはスパークル効果
+      if (brightness > 0.8 && dotSize > 8) {
+        const sparkleIntensity = (brightness - 0.8) / 0.2; // 0-1
+        
+        // 十字のスパークル
+        ctx.globalAlpha = finalAlpha * sparkleIntensity * 0.7;
+        ctx.strokeStyle = dotColor;
+        ctx.lineWidth = 1;
+        
+        const sparkleLength = dotSize * 1.5;
+        
+        // 水平線
+        ctx.beginPath();
+        ctx.moveTo(x - sparkleLength, y);
+        ctx.lineTo(x + sparkleLength, y);
+        ctx.stroke();
+        
+        // 垂直線
+        ctx.beginPath();
+        ctx.moveTo(x, y - sparkleLength);
+        ctx.lineTo(x, y + sparkleLength);
+        ctx.stroke();
+      }
+      
+      ctx.restore();
+    }
+  }
+  
+  // 中心の特別な光源
+  const coreIntensity = Math.sin(time * 0.03 * speed) * 0.3 + 0.7;
+  ctx.save();
+  
+  const coreSize = 4 * scale * coreIntensity;
+  const coreColor = getColor(50, 100, time, colorMode);
+  
+  ctx.globalAlpha = coreIntensity * 0.8;
+  ctx.fillStyle = coreColor;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, coreSize, 0, Math.PI * 2);
+  ctx.fill();
+  
+  ctx.restore();
+  ctx.globalAlpha = 1;
+};
 
 
   // 描画パターン関数群
+  // ✨ 三角形格子パターン（軽量・高品質・完璧ループ）
+
   const drawSpiralPattern = (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, time: number) => {
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
-    const maxRadius = Math.min(centerX, centerY) * 0.9 * scale;
 
+    // 背景処理
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#2a2a2a';
+    ctx.fillStyle = '#0a0a0a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const rings = density;
-    const spiralTurns = 8;
+    // 完璧ループのための時間正規化
+    const loopTime = (time * speed * 0.03) % (Math.PI * 2); // 0-2π完璧ループ
+    const phase1 = Math.sin(loopTime) * 0.5 + 0.5; // 0-1のフェーズ1
+    const phase2 = Math.sin(loopTime + Math.PI / 3) * 0.5 + 0.5; // 位相差つきフェーズ2
 
-    for (let ring = 0; ring < rings; ring++) {
-      const radius = (ring / rings) * maxRadius;
-      const thickness = maxRadius / rings * 0.8;
+    // グリッドサイズ（密度とスケールで調整）
+    const baseGridSize = (60 - density * 0.8) * scale; // 密度↑でグリッド細かく
+    const gridSize = Math.max(15, baseGridSize); // 最小サイズ制限
 
-      ctx.strokeStyle = getColor(ring, rings, time, colorMode);
-      ctx.lineWidth = thickness;
-      ctx.lineCap = 'round';
+    // 六角形グリッドの基本パラメータ
+    const hexHeight = gridSize * Math.sqrt(3) / 2;
+    const hexWidth = gridSize;
 
+    // 回転とシフト効果
+    const globalRotation = loopTime * rotation * 0.5;
+    const shiftX = Math.sin(loopTime * 1.5) * gridSize * 0.3;
+    const shiftY = Math.cos(loopTime * 1.2) * hexHeight * 0.3;
+
+    // 描画範囲を80%に制限 + スケール連動
+    const maxDrawRadius = Math.min(canvas.width, canvas.height) * 0.4 * scale; // 最大80%（半径40%）
+    const margin = gridSize;
+    const startX = Math.floor((-maxDrawRadius - margin) / hexWidth) * hexWidth;
+    const endX = Math.ceil((maxDrawRadius + margin) / hexWidth) * hexWidth;
+    const startY = Math.floor((-maxDrawRadius - margin) / hexHeight) * hexHeight;
+    const endY = Math.ceil((maxDrawRadius + margin) / hexHeight) * hexHeight;
+
+    ctx.lineWidth = 2;
+
+    // 六角形グリッドベースの三角形を描画
+    for (let row = startY; row <= endY; row += hexHeight) {
+      for (let col = startX; col <= endX; col += hexWidth) {
+        // 六角形グリッドのオフセット計算
+        const isOddRow = Math.floor(row / hexHeight) % 2 === 1;
+        const offsetX = isOddRow ? hexWidth / 2 : 0;
+
+        // 基本座標
+        const baseX = centerX + col + offsetX + shiftX;
+        const baseY = centerY + row + shiftY;
+
+        // 回転変換
+        const rotatedX = centerX + (baseX - centerX) * Math.cos(globalRotation) - (baseY - centerY) * Math.sin(globalRotation);
+        const rotatedY = centerY + (baseX - centerX) * Math.sin(globalRotation) + (baseY - centerY) * Math.cos(globalRotation);
+
+        // 中心からの距離（効果制御用 + 描画範囲制限）
+        const distanceFromCenter = Math.sqrt((rotatedX - centerX) ** 2 + (rotatedY - centerY) ** 2);
+
+        // 描画範囲外の場合はスキップ
+        if (distanceFromCenter > maxDrawRadius) continue;
+
+        const normalizedDistance = Math.min(1, distanceFromCenter / maxDrawRadius);
+
+        // 波動効果
+        const wave1 = Math.sin(distanceFromCenter * 0.02 + loopTime * 2) * 0.5 + 0.5;
+        const wave2 = Math.cos(distanceFromCenter * 0.03 + loopTime * 1.5 + Math.PI / 4) * 0.5 + 0.5;
+
+        // 色彩計算
+        const colorPhase = (normalizedDistance * 100 + loopTime * 30 + wave1 * 50) % 100;
+        const lineColor = getColor(Math.floor(colorPhase), 100, time, colorMode);
+
+        // 透明度（距離と波動で制御）
+        const alpha = (0.3 + wave1 * 0.4 + wave2 * 0.3) * (1 - normalizedDistance * 0.3);
+
+        ctx.save();
+        ctx.strokeStyle = lineColor;
+        ctx.globalAlpha = alpha;
+
+        // 6つの三角形を描画（六角形を6分割）
+        const triangleSize = gridSize * (0.8 + phase1 * 0.4); // サイズ変動
+
+        for (let i = 0; i < 6; i++) {
+          const angle1 = (i * Math.PI) / 3;
+          const angle2 = ((i + 1) * Math.PI) / 3;
+          const angle3 = ((i + 2) * Math.PI) / 3;
+
+          // 三角形の頂点計算
+          const x1 = rotatedX + Math.cos(angle1) * triangleSize;
+          const y1 = rotatedY + Math.sin(angle1) * triangleSize;
+          const x2 = rotatedX + Math.cos(angle2) * triangleSize;
+          const y2 = rotatedY + Math.sin(angle2) * triangleSize;
+
+          // 中心から外側への線
+          ctx.beginPath();
+          ctx.moveTo(rotatedX, rotatedY);
+          ctx.lineTo(x1, y1);
+          ctx.stroke();
+
+          // 外周の線（隣接する頂点を結ぶ）
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+
+          // 波動による追加効果（確率的に表示）
+          if (wave2 > 0.6) {
+            const innerRadius = triangleSize * 0.5;
+            const innerX = rotatedX + Math.cos(angle1) * innerRadius;
+            const innerY = rotatedY + Math.sin(angle1) * innerRadius;
+
+            ctx.beginPath();
+            ctx.moveTo(rotatedX, rotatedY);
+            ctx.lineTo(innerX, innerY);
+            ctx.globalAlpha = alpha * 0.5;
+            ctx.stroke();
+          }
+        }
+
+        ctx.restore();
+      }
+    }
+
+    // 中心部の強調エフェクト（描画範囲内のみ）
+    const coreIntensity = phase1 * phase2;
+    if (coreIntensity > 0.3 && maxDrawRadius > 20) { // 最小サイズ制限も追加
+      ctx.save();
+
+      const coreRadius = Math.min(12 * scale, maxDrawRadius * 0.1) * coreIntensity;
+      const coreColor = getColor(50, 100, time * 2, colorMode);
+
+      // 中心の光る点
       ctx.beginPath();
+      ctx.arc(centerX, centerY, coreRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = coreColor;
+      ctx.lineWidth = 3;
+      ctx.globalAlpha = coreIntensity * 0.8;
+      ctx.stroke();
 
-      const segments = Math.max(64, ring * 2);
-      for (let i = 0; i <= segments; i++) {
-        const angle = (i / segments) * Math.PI * 2 * spiralTurns + time * 0.02 * speed * rotation;
-        const currentRadius = radius + Math.sin(i / segments * Math.PI * spiralTurns + time * 0.01) * 20;
+      // 放射状の光線
+      for (let i = 0; i < 8; i++) {
+        const rayAngle = (i / 8) * Math.PI * 2 + globalRotation * 2;
+        const rayLength = Math.min(coreRadius * 2, maxDrawRadius * 0.2);
 
-        const x = centerX + Math.cos(angle) * currentRadius;
-        const y = centerY + Math.sin(angle) * currentRadius;
-
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(
+          centerX + Math.cos(rayAngle) * rayLength,
+          centerY + Math.sin(rayAngle) * rayLength
+        );
+        ctx.globalAlpha = coreIntensity * 0.4;
+        ctx.stroke();
       }
 
-      ctx.globalAlpha = 0.8;
-      ctx.stroke();
-      ctx.globalAlpha = 1;
+      ctx.restore();
     }
+
+    ctx.globalAlpha = 1;
   };
+
+  // プルダウンの表示名を変更
+  <option value="spiral">✨ Geometric Lattice</option>
 
   const drawRipplePattern = (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, time: number) => {
     const centerX = canvas.width / 2;
@@ -351,6 +603,154 @@ const GeometricLoopAnimator = () => {
     ctx.globalAlpha = 1;
   };
 
+  const drawHypnoticSpiralPattern = (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, time: number) => {
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const maxRadius = Math.min(canvas.width, canvas.height) * 0.4 * scale;
+
+    // 既存と同じ背景処理
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const lineCount = Math.floor(density * 0.8) + 10; // 最低10本の線
+
+    ctx.lineWidth = 2;
+
+    for (let i = 0; i < lineCount; i++) {
+      const angle = (i / lineCount) * Math.PI * 2;
+      const rotationAngle = time * 0.01 * rotation;
+
+      // 渦巻きパラメータ
+      const spiralTightness = 0.3;
+      const cycles = 4;
+
+      ctx.save();
+
+      ctx.beginPath();
+
+      // 渦巻き線を描画
+      for (let r = 0; r <= maxRadius; r += 3) {
+        const spiralAngle = angle + rotationAngle + (r * spiralTightness * cycles * Math.PI) / maxRadius;
+        const x = centerX + Math.cos(spiralAngle) * r;
+        const y = centerY + Math.sin(spiralAngle) * r;
+
+        if (r === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+
+      // 色彩とアルファ設定（既存と同じ方式）
+      const wave = Math.sin(i * 0.1 - time * 0.02 * speed) * 0.5 + 0.5;
+      ctx.strokeStyle = getColor(i, lineCount, time, colorMode);
+      ctx.globalAlpha = wave * 0.8 + 0.2;
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    ctx.globalAlpha = 1;
+  };
+
+  const drawGeometricStarPattern = (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, time: number) => {
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+
+    // ✅ スケール修正：baseRadiusをさらに大きく調整
+    const baseRadius = Math.min(canvas.width, canvas.height) * 0.3 * scale;
+
+    // 既存と同じ背景処理
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const layers = Math.floor(density * 0.1) + 3; // 最低3層
+
+    ctx.lineWidth = 1.5;
+
+    for (let layer = 0; layer < layers; layer++) {
+      // ✅ スケール修正：layerRadiusをより大きく
+      const layerRadius = baseRadius * (0.1 + (layer / layers) * 0.9); // 0.2-1.0 → 0.1-1.0 に変更
+      const rotationAngle = time * 0.01 * rotation + (layer * Math.PI / 6);
+
+      // 距離ベースの波動効果（既存と同じ方式）
+      const distance = layerRadius;
+      const wave = Math.sin(distance * 0.05 - time * 0.02 * speed) * 0.5 + 0.5;
+
+      const adjustedRadius = layerRadius * (1 + wave * 0.3); // 波動による半径調整
+
+      // 6角形星型の頂点計算
+      const outerPoints: Array<{ x: number, y: number }> = [];
+      const innerPoints: Array<{ x: number, y: number }> = [];
+
+      for (let i = 0; i < 6; i++) {
+        const outerAngle = (i * Math.PI) / 3 + rotationAngle;
+        const innerAngle = ((i + 0.5) * Math.PI) / 3 + rotationAngle;
+
+        // 外側頂点（星の先端）
+        outerPoints.push({
+          x: centerX + Math.cos(outerAngle) * adjustedRadius,
+          y: centerY + Math.sin(outerAngle) * adjustedRadius
+        });
+
+        // 内側頂点（星の谷）
+        innerPoints.push({
+          x: centerX + Math.cos(innerAngle) * adjustedRadius * 0.5,
+          y: centerY + Math.sin(innerAngle) * adjustedRadius * 0.5
+        });
+      }
+
+      ctx.save();
+
+      // 星型描画
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const outer = outerPoints[i];
+        const inner = innerPoints[i];
+        const nextOuter = outerPoints[(i + 1) % 6];
+
+        if (i === 0) {
+          ctx.moveTo(outer.x, outer.y);
+        }
+
+        ctx.lineTo(inner.x, inner.y);
+        ctx.lineTo(nextOuter.x, nextOuter.y);
+      }
+      ctx.closePath();
+
+      // 色彩とアルファ設定（既存と同じ方式）
+      ctx.strokeStyle = getColor(layer, layers, time, colorMode);
+      ctx.globalAlpha = wave * 0.8 + 0.2;
+      ctx.stroke();
+
+      // 内部螺旋構造（奇数層のみ）
+      if (layer % 2 === 0) {
+        ctx.beginPath();
+        const spiralRadius = adjustedRadius * 0.3;
+        for (let angle = 0; angle < Math.PI * 4; angle += 0.2) {
+          const r = spiralRadius * (angle / (Math.PI * 4));
+          const x = centerX + Math.cos(angle + rotationAngle) * r;
+          const y = centerY + Math.sin(angle + rotationAngle) * r;
+
+          if (angle === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+        }
+        ctx.globalAlpha = (wave * 0.5 + 0.3); // 螺旋は少し薄く
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    ctx.globalAlpha = 1;
+  };
+
+
   // 🎨 GIF生成機能
   // 🎯 デバイス最適化関数群
   const getDeviceInfo = () => {
@@ -480,6 +880,15 @@ const GeometricLoopAnimator = () => {
               break;
             case 'hexagon':
               drawHexagonPattern(ctx, canvas, timeRef.current);
+              break;
+            case 'hypnotic':
+              drawHypnoticSpiralPattern(ctx, canvas, timeRef.current);
+              break;
+            case 'geometric-star':
+              drawGeometricStarPattern(ctx, canvas, timeRef.current);
+              break;
+            case 'random':
+              drawRandomPattern(ctx, canvas, timeRef.current);
               break;
           }
         }
@@ -825,6 +1234,15 @@ const GeometricLoopAnimator = () => {
             case 'hexagon':
               drawHexagonPattern(ctx, canvas, timeRef.current);
               break;
+            case 'hypnotic':
+              drawHypnoticSpiralPattern(ctx, canvas, timeRef.current);
+              break;
+            case 'geometric-star':
+              drawGeometricStarPattern(ctx, canvas, timeRef.current);
+              break;
+            case 'random':
+              drawRandomPattern(ctx, canvas, timeRef.current);
+              break;
           }
         }
 
@@ -998,6 +1416,15 @@ const GeometricLoopAnimator = () => {
       case 'hexagon':
         drawHexagonPattern(ctx, canvas, timeRef.current);
         break;
+      case 'hypnotic':
+        drawHypnoticSpiralPattern(ctx, canvas, timeRef.current);
+        break;
+      case 'geometric-star':
+        drawGeometricStarPattern(ctx, canvas, timeRef.current);
+        break;
+      case 'random':
+        drawRandomPattern(ctx, canvas, timeRef.current);
+        break;
     }
 
     if (isPlaying) {
@@ -1152,13 +1579,6 @@ const GeometricLoopAnimator = () => {
             >
               <Download size={18} />
             </button>
-            <button
-              onClick={generateRandom}
-              className="w-10 h-10 bg-yellow-600 hover:bg-yellow-700 rounded-md flex items-center justify-center text-white transition-colors text-lg"
-              title="ランダム生成"
-            >
-              🎲
-            </button>
           </div>
 
           {/* 動画・アニメーション出力機能 */}
@@ -1248,6 +1668,21 @@ const GeometricLoopAnimator = () => {
             </div>
           )}
 
+          <div className="flex items-center gap-4 mb-4">
+            <button
+              onClick={() => setIsPlaying(!isPlaying)}
+              className={`px-6 py-3 rounded-lg font-semibold text-white transition-all duration-200 ${isPlaying
+                ? 'bg-red-600 hover:bg-red-700'
+                : 'bg-green-600 hover:bg-green-700'
+                }`}
+            >
+              {isPlaying ? '⏸️ Pause' : '▶️ Play'}
+            </button>
+
+            <span className="text-gray-400 text-sm">
+              {isPlaying ? 'Animation running' : 'Animation paused'}
+            </span>
+          </div>
           {/* パターン選択 */}
           <div className="mb-3">
             <label className="text-white text-xs block mb-2">パターン</label>
@@ -1256,11 +1691,14 @@ const GeometricLoopAnimator = () => {
               onChange={(e) => setPattern(e.target.value)}
               className="w-full bg-gray-800 text-white text-xs rounded px-2 py-2"
             >
-              <option value="spiral">同心円螺旋</option>
+              <option value="spiral">三角形格子</option>
               <option value="ripple">波紋リップル</option>
               <option value="star">星型パターン</option>
               <option value="triangle">三角フラクタル</option>
               <option value="hexagon">六角形ハニカム</option>
+              <option value="hypnotic">渦巻き模様</option>
+              <option value="geometric-star">幾何学星</option>
+              <option value="random">ドットパターン</option>
             </select>
           </div>
 
